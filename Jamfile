@@ -1,0 +1,20 @@
+#
+# annex Jamfile
+#
+
+# Copyright (c) 2009 Benaka Moorthi
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or www.boost.org/LICENSE_1_0.txt)
+
+import os ;
+
+use-project boost : $(BOOST_ROOT) ;
+
+project annex
+    : requirements
+      <include>$(ANNEX_ROOT)
+      <include>$(BOOST_ROOT)
+    : usage-requirements
+      <include>$(ANNEX_ROOT)
+      <include>$(BOOST_ROOT)
+    ;

@@ -1,0 +1,33 @@
+#
+# annex test Jamfile
+#
+
+# Copyright (c) 2009 Benaka Moorthi
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or www.boost.org/LICENSE_1_0.txt)
+
+import feature ;
+import testing ;
+
+project annex/test
+    : requirements
+      <library>/annex
+    ;
+
+lib plugin1
+    : plugin1.cpp
+    ;
+
+lib plugin2
+    : plugin2.cpp
+    ;
+
+install plugin_install
+    : plugin1
+      plugin2
+    : <location>.
+    ;
+
+test-suite "annex" :
+    [ run tests.cpp plugin_install /boost/test//boost_unit_test_framework/<link>static ]
+    ;
