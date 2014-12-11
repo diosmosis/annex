@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-//  Copyright (c) 2009 Benaka Moorthi
+//  Copyright (c) 2014 Benaka Moorthi
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -10,13 +10,11 @@
 #if !defined( ANNEX_ANNEX_HPP )
 #define ANNEX_ANNEX_HPP
 
-#include <boost/function_types/result_type.hpp>
-
 #include <boost/config.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/assert.hpp>
-
+#include <memory>
+#include <type_traits>
 #include <string>
+#include <assert.h>
 
 // TODO: This should throw boost::system_error based on a #define.
 #if defined(BOOST_WINDOWS) // windows
@@ -32,31 +30,21 @@ namespace annex { namespace detail
 
     inline shared_library_handle load_shared_library(std::string const& file)
     {
-        void * result = LoadLibraryA(file.c_str());
-
-        BOOST_ASSERT(result);
-
-        return result;
+        return LoadLibraryA(file.c_str());
     }
 
-    inline void unload_shared_library(shared_library_handle handle)
+    inline bool unload_shared_library(shared_library_handle handle)
     {
-        BOOST_ASSERT(handle);
+        assert(handle);
 
-        int result = FreeLibrary(handle);
-
-        BOOST_ASSERT(result);
+        return FreeLibrary(handle) != 0;
     }
 
     inline void * get_function_ptr(shared_library_handle handle, char const* str)
     {
-        BOOST_ASSERT(handle && str);
+        assert(handle && str);
 
-        void * result = GetProcAddress(handle, str);
-
-        BOOST_ASSERT(result);
-
-        return result;
+        return GetProcAddress(handle, str);
     }
 }}
 #else // linux
@@ -70,31 +58,21 @@ namespace annex { namespace detail
 
     inline shared_library_handle load_shared_library(std::string const& file)
     {
-        void * result = dlopen(file.c_str(), RTLD_LAZY);
-
-        // FIXME: if !result throw here
-
-        return result;
+        return dlopen(file.c_str(), RTLD_LAZY);
     }
 
-    inline void unload_shared_library(shared_library_handle handle)
+    inline bool unload_shared_library(shared_library_handle handle)
     {
-        BOOST_ASSERT(handle);
+        assert(handle);
 
-        int result = dlclose(handle);
-
-        BOOST_ASSERT(result == 0);
+        return dlclose(handle) == 0;
     }
 
     inline void * get_function_ptr(shared_library_handle handle, char const* str)
     {
-        BOOST_ASSERT(handle && str);
+        assert(handle && str);
 
-        void * result = dlsym(handle, str);
-
-        BOOST_ASSERT(result);
-
-        return result;
+        return dlsym(handle, str);
     }
 }}
 #endif
@@ -108,7 +86,6 @@ namespace annex { namespace detail
     }
 
 // TODO: put debug parts to ensure type safety, at least in debug mode
-// TODO: put some way of passing arguments to plugin
 namespace annex
 {
     struct shared_library
@@ -118,29 +95,40 @@ namespace annex
             handle = detail::load_shared_library(file);
         }
 
+        shared_library(shared_library && other)
+            : handle(other.handle)
+        {}
+
         ~shared_library()
         {
             detail::unload_shared_library(handle);
         }
 
-        // TODO: Use file iteration
+        template <typename Signature, typename... ArgumentTypes>
+        typename std::result_of<Signature>::type execute(char const* str, ArgumentTypes... args) const
+        {
+            Signature * fptr = get_as<Signature>(str);
+            return fptr(args...);
+        }
+
+        explicit operator bool() const
+        {
+            return handle;
+        }
+
+        void * get(char const* str) const
+        {
+            return detail::get_function_ptr(handle, str);
+        }
+
         template <typename Signature>
-        typename boost::function_types::result_type<Signature>::type
-            execute(char const* str)
+        Signature * get_as(char const* str) const
         {
-            Signature * fptr = (Signature *) detail::get_function_ptr(handle, str);
-
-            return fptr();
+            return static_cast<Signature *>(get(str));
         }
 
-        template <typename Signature, typename A0>
-        typename boost::function_types::result_type<Signature>::type
-            execute(char const* str, A0 & a0)
-        {
-            Signature * fptr = (Signature *) detail::get_function_ptr(handle, str);
-
-            return fptr(a0);
-        }
+    private:
+        shared_library(shared_library const&);
 
         detail::shared_library_handle handle;
     };
@@ -178,7 +166,8 @@ namespace annex
 
         Impl * operator -> () const { return pimpl->impl; }
 
-        boost::shared_ptr<impl_type> pimpl;
+    private:
+        std::shared_ptr<impl_type> pimpl;
     };
 }
 
