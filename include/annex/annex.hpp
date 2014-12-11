@@ -10,14 +10,13 @@
 #if !defined( ANNEX_ANNEX_HPP )
 #define ANNEX_ANNEX_HPP
 
-#include <boost/config.hpp>
 #include <memory>
 #include <type_traits>
 #include <string>
 #include <assert.h>
 
-// TODO: This should throw boost::system_error based on a #define.
-#if defined(BOOST_WINDOWS) // windows
+// TODO: Should throw an exception to get human readable error messages on errors.
+#if defined(WIN32) || defined(_WIN32) // windows
 #   define ANNEX_DECL __declspec(dllexport)
 
 namespace annex { namespace detail
